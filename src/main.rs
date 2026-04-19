@@ -38,7 +38,7 @@ pub struct FsUploader {
 #[async_trait]
 impl Uploader for FsUploader {
     async fn upload(&self, filename: &str, data: &[u8]) -> Result<(), AppError> {
-        let path = format!("{}/{}", self.base_path, filename);
+        let path = std::path::Path::new(&self.base_path).join(filename);
         fs::write(path, data)?;
         Ok(())
     }
