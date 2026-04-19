@@ -127,21 +127,33 @@ pub async fn main() -> Result<(), AppError> {
             continue;
         }
 
-        let img = if line.starts_with("http://") || line.starts_with("https://") {
-            let resp = reqwest::get(line).await?.bytes().await?;
-            image::load_from_memory(&resp)?
+        let img_res = if line.starts_with("http://") || line.starts_with("https://") {
+            match reqwest::get(line).await {
+                Ok(resp) => match resp.bytes().await {
+                    Ok(b) => image::load_from_memory(&b),
+                    Err(_) => continue,
+                },
+                Err(_) => continue,
+            }
         } else {
-            image::open(line)?
+            image::open(line)
+        };
+
+        let img = match img_res {
+            Ok(i) => i,
+            Err(_) => continue,
         };
 
         let resized = img.resize_exact(width, height, FilterType::Lanczos3);
 
         let mut bytes: Vec<u8> = Vec::new();
         let mut cursor = Cursor::new(&mut bytes);
-        resized.write_to(&mut cursor, image::ImageOutputFormat::Png)?;
+        if resized.write_to(&mut cursor, image::ImageOutputFormat::Png).is_err() {
+            continue;
+        }
 
         let out_filename = format!("resized_img_{}.png", i + 1);
-        uploader.upload(&out_filename, &bytes).await?;
+        let _ = uploader.upload(&out_filename, &bytes).await;
     }
 
     Ok(())
