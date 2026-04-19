@@ -1,10 +1,4 @@
-#![warn(missing_docs)]
-#![warn(missing_crate_level_docs)]
-#![warn(clippy::missing_panics_doc)]
-#![warn(clippy::missing_errors_doc)]
 #![warn(clippy::result_large_err)]
-
-//! Крейт для завантаження, обробки та збереження зображень локально або у хмарному сховищі.
 
 use std::env;
 use std::fs::{self, File};
@@ -16,51 +10,27 @@ use aws_credential_types::Credentials;
 use async_trait::async_trait;
 use thiserror::Error;
 
-/// Специфічні помилки, що можуть виникнути під час роботи програми.
 #[derive(Error, Debug)]
 pub enum AppError {
-    /// Помилка вводу-виводу при роботі з файловою системою.
     #[error("Помилка файлової системи: {0}")]
     Io(#[from] std::io::Error),
-
-    /// Помилка при виконанні HTTP-запитів.
     #[error("Помилка мережі: {0}")]
     Reqwest(#[from] reqwest::Error),
-
-    /// Помилка обробки або формату зображення.
     #[error("Помилка зображення: {0}")]
     Image(#[from] image::ImageError),
-
-    /// Помилка парсингу числових значень розміру.
     #[error("Помилка парсингу чисел: {0}")]
     ParseInt(#[from] std::num::ParseIntError),
-
-    /// Помилка при взаємодії з хмарним сховищем S3.
     #[error("Помилка S3: {0}")]
     S3(String),
-
-    /// Відсутні або некоректні аргументи командного рядка.
     #[error("Неправильні аргументи: {0}")]
     Argument(String),
 }
 
-/// Інтерфейс для сутностей, що відповідають за збереження оброблених файлів.
 #[async_trait]
 pub trait Uploader {
-    /// Зберігає дані за вказаним іменем файлу.
-    ///
-    /// # Arguments
-    ///
-    /// * `filename` - Назва файлу для збереження.
-    /// * `data` - Вміст файлу у вигляді байтів.
-    ///
-    /// # Errors
-    ///
-    /// Повертає `AppError`, якщо операція збереження зазнала невдачі.
     async fn upload(&self, filename: &str, data: &[u8]) -> Result<(), AppError>;
 }
 
-/// Реалізація завантажувача для збереження файлів у локальну файлову систему.
 pub struct FsUploader {
     base_path: String,
 }
@@ -74,7 +44,6 @@ impl Uploader for FsUploader {
     }
 }
 
-/// Реалізація завантажувача для відправки файлів у бакет AWS S3.
 pub struct S3Uploader {
     client: Client,
     bucket: String,
@@ -95,16 +64,6 @@ impl Uploader for S3Uploader {
     }
 }
 
-/// Точка входу в програму. Читає файл зі списками URL, змінює розмір зображень і зберігає їх.
-///
-/// # Errors
-///
-/// Повертає `AppError` у випадку помилок мережі, файлової системи, некоректних конфігурацій
-/// або якщо невірно вказані аргументи командного рядка.
-///
-/// # Panics
-///
-/// Функція не повинна викликати паніку за нормальних умов, всі помилки обробляються через Result.
 #[tokio::main]
 pub async fn main() -> Result<(), AppError> {
     let args: Vec<String> = env::args().collect();
@@ -130,9 +89,9 @@ pub async fn main() -> Result<(), AppError> {
     let uploader_type = env::var("MYME_UPLOADER").unwrap_or_else(|_| "fs".to_string());
 
     let uploader: Box<dyn Uploader> = if uploader_type == "s3" {
-        let endpoint = "https://t3.storage.dev";
-        let access_key = "tid_dwwa_ikqWZDXkMDdxVUmyhzARxH_GybXS_SsblkxktemYJAZCP".to_string();
-        let secret_key = "tsec_zkRDtAcJdVagtALfmzs2DfCvi8BWmxX_Vm3iDoxaI2HKSTZieNfOSRgFLprF1c8L0ADOLE".to_string();
+        let endpoint = env::var("S3_ENDPOINT").unwrap_or_else(|_| "https://t3.storage.dev".to_string());
+        let access_key = env::var("S3_ACCESS_KEY").unwrap_or_else(|_| "".to_string());
+        let secret_key = env::var("S3_SECRET_KEY").unwrap_or_else(|_| "".to_string());
         let bucket = env::var("S3_BUCKET").unwrap_or_else(|_| "laba2-syvolap".to_string());
 
         let credentials = Credentials::new(access_key, secret_key, None, None, "manual");
