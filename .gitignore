@@ -1,0 +1,14 @@
+/target
+
+**/*.rs.bk
+
+.env
+.env.*
+
+/output
+resized_img_*.png
+
+.vscode/
+.idea/
+*.swp
+*~
